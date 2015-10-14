@@ -1,0 +1,189 @@
+################################
+#Author Linna Du
+#################################
+import xml.etree.ElementTree as etree
+import re
+import pandas as pd
+import csv
+import urllib2
+file=urllib2.urlopen('http://www.nycgovparks.org/xml/events_300_rss.xml')
+tree = etree.parse(file)
+root = tree.getroot() 
+################################################# function
+def category(string):
+    string=str(string).lstrip().rstrip() 
+    pattern=' \|'
+    string=re.sub(pattern,';', string) 
+    string=string.lstrip().rstrip()
+    return string
+#####################################################3
+def aphr(string):
+    string=str(string).lstrip().rstrip()
+    if string[-2:].lower()=='pm':
+        if string.split(':')[0] !='12':
+            time=str(int(string[:-3].split(':')[0])+12) +':'+string[:-3].split(':')[1]+':00'
+        else:
+            time=string[:-3]+':00'
+    else:
+        q=string[:-3].split(':', 2)[0]
+        if len(q)==2:
+            time=string[:-3]+':00'
+        elif len(q)==1:
+            time='0'+string[:-3]+':00'
+    return time
+##############################################################
+def phoennumber(string):
+    string=str(string).lstrip().rstrip().replace('(nan) -nan', '')
+    string=re.sub('[\(\)\- ]', '', string)
+    if len(string)==10: 
+        phone='(' +string[:3]+')'+' '+string[3:6]+'-'+string[-4:]
+    else:
+        phone=''
+    phone=phone.lstrip().rstrip()
+    return phone
+###################################################################
+def change_month(string):
+    whole_string=str(string).lstrip().rstrip()
+    whole_string=whole_string.split(',', 2)[1]
+    day, string, year, time, est=whole_string.lstrip().rstrip().split(' ', 5)
+    if string.upper()=='JAN' or 'JANUARY':
+        string='01'
+    elif string.upper()=='FEB' or 'FEBRUARY':
+        string='02'
+    elif string.upper()=='MAR' or 'MARCH':
+        string='03'
+    elif string.upper()=='APR' or 'APRIL':
+        string='04'
+    elif string.upper()=='MAY' or 'MAY':
+        string='05'
+    elif string.upper()=='JUN.' or 'JUNE':
+        string='06'
+    elif string.upper()=='JULY':
+        string='07'
+    elif string.upper()=='AUGUST' or 'AUG':
+        string='08'
+    elif string.upper()=='SEP' or 'SEPTEMBER':
+        string='09'
+    elif string.upper()=='OCT' or 'OCTOBER':
+        string='10'
+    elif string.upper()=='NOV' or 'NOVEMBER':
+        string='11'
+    elif string.upper()=='DECEMBER' or 'DEC':
+        string='12'
+    output=year+'-'+string+'-'+day+' '+time
+    output=output.lstrip().rstrip()
+    return output 
+#########################################################################3
+def parkid(string):
+    string=str(string).lstrip().rstrip()
+    string=string.split(',', 2)[0]
+    string=string.lstrip().rstrip()
+    return string
+#################################################
+def coordinates(string):
+    string=str(string).lstrip().rstrip()
+    string=string.split(';', 2)[0]
+    string=string.lstrip().rstrip()
+    return string
+##########################################################################
+def corni(string):
+    string=str(string).lstrip().rstrip()
+    string=string.split(';',2)[0]
+    lat, long=string.split(',', 2)
+    lat=lat.lstrip().rstrip()
+    long=long.lstrip().rstrip()
+    return lat, long
+##############################################################################################
+def description(string):
+    string=str(string).rstrip().lstrip().replace('/','').replace('\\','')
+    try:
+        string=string.split('<p><p><p>' , 3)[1]
+        string=string.replace('\n', '').replace('<p>', '').replace('<em>', '').replace('<a>', '').rstrip().lstrip()
+    except:
+        string=string.split('<p><p>' , 2)[1]
+        string=string.replace('\n', '').replace('<p>', '').replace('<em>', '').replace('<a>', '').rstrip().lstrip()
+    string=string.split('.')
+    qq=''
+    for i, item in enumerate(string):   
+        if item.startswith("*<a") and item.endswith(">"):
+            item=''
+        elif len(item)>0 and re.search("<", item):
+            item=''
+        elif len(item)>0 and re.search(">", item):
+            item=''
+        elif len(item)<=5:
+            item=''
+        qq=qq+ '. ' + item
+    qq=re.sub('[\!\@\#\$\%\&\*\(\)\{\}\[\]\"\?\|\<\>\^]', '', qq)
+    qq=qq[2:-1].replace('39;', '\'').replace('. . .','').replace('. . ','').replace('. nycgovparks','').replace('. .','').replace('..','').rstrip().lstrip()
+    return qq    
+
+
+################
+park={}
+park['atitle']=[]
+park['blink']=[]
+park['cdescription']=[]
+park['dparkid']=[]
+park['eparkname']=[]
+park['fstartdate']=[]
+park['genddate']=[]
+park['hstarttime']=[]
+park['iendtime']=[]
+park['lcontact_phone']=[]
+park['mlocation']=[]
+park['ncategories']=[]
+park['ocoordinates']=[]
+park['ppubdate']=[]
+for child in root:
+    for grandchild in child:
+        for i, ggrandchild in enumerate(grandchild):
+            if str(i)=='0': 
+                park['atitle'].append(ggrandchild.text)
+            if str(i)=='2':
+                park['blink'].append(ggrandchild.text)
+            if str(i)=='3':
+                park['cdescription'].append(description(ggrandchild.text))
+            if str(i)=='4':
+                park['dparkid'].append(parkid(ggrandchild.text))
+            if str(i)=='5':   
+                park['eparkname'].append(parkid(ggrandchild.text))
+            if str(i)=='6':
+                park['fstartdate'].append(ggrandchild.text)
+            if str(i)=='7':
+                park['genddate'].append(ggrandchild.text)
+            if str(i)=='8':
+                park['hstarttime'].append(aphr(ggrandchild.text))
+            if str(i)=='9':
+                park['iendtime'].append(aphr(ggrandchild.text).replace('00:00:00', '23:59:59'))
+            if str(i)=='10':
+                park['lcontact_phone'].append(phoennumber(ggrandchild.text))
+            if str(i)=='11':
+                park['mlocation'].append(ggrandchild.text)
+            if str(i)=='12':
+                park['ncategories'].append(category(ggrandchild.text))
+            if str(i)=='13':
+                park['ocoordinates'].append(coordinates(ggrandchild.text))
+            if str(i)=='15':
+                park['ppubdate'].append(change_month(ggrandchild.text))
+
+
+
+park=pd.DataFrame(park)
+
+
+park['qlatitude']=['' for i in xrange(len(park))]
+park['rlongitude']=['' for i in xrange(len(park))]
+
+   
+for i, item in enumerate(park['ocoordinates']):
+    lat, long=corni(item)
+    park.ix[i,'qlatitude']=lat
+    park.ix[i,'rlongitude']=long
+
+park['jstartdatetime']=park['fstartdate']+' '+park['hstarttime']
+park['kenddatetime']=park['genddate']+' ' +park['iendtime']
+
+park=park[['atitle','blink','cdescription','dparkid','eparkname','fstartdate','genddate','hstarttime','iendtime','jstartdatetime','kenddatetime','lcontact_phone','mlocation','ncategories','ocoordinates','ppubdate','qlatitude','rlongitude']]
+
+park.to_csv('/home/byandfor/Dropbox/park/park_event9.csv', dtype=str, index=False, quoting=csv.QUOTE_ALL)
